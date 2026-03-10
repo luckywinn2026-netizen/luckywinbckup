@@ -1,0 +1,101 @@
+const express = require('express');
+const router = express.Router();
+const { supabaseAdmin } = require('../services/supabase');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+
+/**
+ * POST /api/admin/set-password
+ * Body: { user_id, password } (password min 6 chars)
+ * Admin only. Sets user password via Supabase Auth.
+ */
+router.post('/set-password', requireAuth, requireAdmin, async (req, res) => {
+  const { user_id, password } = req.body || {};
+  if (!user_id || !password || password.length < 6) {
+    return res.status(400).json({ error: 'user_id and password (min 6 chars) required' });
+  }
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, { password });
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  return res.json({ success: true });
+});
+
+/**
+ * POST /api/admin/approve-agent
+ * Body: { application_id, password }
+ * Admin only. Approves agent application: create/update user, assign role, wallet, update application.
+ */
+router.post('/approve-agent', requireAuth, requireAdmin, async (req, res) => {
+  const { application_id, password } = req.body || {};
+  if (!application_id || !password || password.length < 6) {
+    return res.status(400).json({ error: 'application_id and password (min 6 chars) required' });
+  }
+
+  const { data: app, error: appErr } = await supabaseAdmin
+    .from('agent_applications')
+    .select('*')
+    .eq('id', application_id)
+    .single();
+
+  if (appErr || !app) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+  if (app.status !== 'pending') {
+    return res.status(400).json({ error: 'Application already processed' });
+  }
+
+  const phone = app.phone.replace(/[^0-9]/g, '');
+  const email = `${phone}@luckywin.app`;
+
+  const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+  const existingUser = listData?.users?.find((u) => u.email === email);
+  let userId;
+
+  if (existingUser) {
+    userId = existingUser.id;
+    await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+  } else {
+    const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { username: app.name, phone },
+    });
+    if (createErr || !newUser?.user) {
+      return res.status(500).json({ error: 'Failed to create user: ' + (createErr?.message || 'Unknown') });
+    }
+    userId = newUser.user.id;
+  }
+
+  await supabaseAdmin.from('user_roles').upsert(
+    { user_id: userId, role: 'payment_agent' },
+    { onConflict: 'user_id,role' }
+  );
+
+  const { data: existingWallet } = await supabaseAdmin
+    .from('agent_wallets')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+  if (!existingWallet) {
+    await supabaseAdmin.from('agent_wallets').insert({ user_id: userId });
+  }
+
+  await supabaseAdmin
+    .from('agent_applications')
+    .update({
+      status: 'approved',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: req.user.id,
+    })
+    .eq('id', application_id);
+
+  return res.json({
+    success: true,
+    user_id: userId,
+    phone,
+    message: `Agent ${app.name} approved and account created`,
+  });
+});
+
+module.exports = router;

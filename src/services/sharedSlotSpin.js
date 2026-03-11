@@ -75,6 +75,16 @@ async function runSharedSlotSpin(userId, betAmount, gameId, gameName) {
     else outcome = { ...outcome, outcome: 'mega_win' };
   }
 
+  // Fortune Wheel: sync outcome tier so frontend picks correct multiplier reel
+  // small <2x, medium 2–5x, big 5–15x, mega 15x+
+  if (gameId === 'fortune-wheel' && outcome.maxWinAmount > 0) {
+    const mult = outcome.maxWinAmount / bet;
+    if (mult < 2) outcome = { ...outcome, outcome: 'small_win' };
+    else if (mult < 5) outcome = { ...outcome, outcome: 'medium_win' };
+    else if (mult < 15) outcome = { ...outcome, outcome: 'big_win' };
+    else outcome = { ...outcome, outcome: 'mega_win' };
+  }
+
   const multiplier = outcome.multiplier ?? (outcome.maxWinAmount > 0 ? Math.round((outcome.maxWinAmount / bet) * 100) / 100 : 0);
   const { data, error } = await supabaseAdmin.rpc('settle_generic_game_round', {
     p_user_id: userId,

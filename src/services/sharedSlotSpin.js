@@ -100,6 +100,51 @@ async function runSharedSlotSpin(userId, betAmount, gameId, gameName) {
     else outcome = { ...outcome, outcome: 'mega_win' };
   }
 
+  // Money Coming: sync outcome tier (same as Fortune Wheel)
+  if (gameId === 'money-coming' && outcome.maxWinAmount > 0) {
+    const mult = outcome.maxWinAmount / bet;
+    if (mult < 2) outcome = { ...outcome, outcome: 'small_win' };
+    else if (mult < 5) outcome = { ...outcome, outcome: 'medium_win' };
+    else if (mult < 15) outcome = { ...outcome, outcome: 'big_win' };
+    else outcome = { ...outcome, outcome: 'mega_win' };
+  }
+
+  // Fruit Party, Tropical Fruits, Classic Casino: sync outcome tier
+  if (['fruit-party', 'tropical-fruits', 'classic-casino'].includes(gameId) && outcome.maxWinAmount > 0) {
+    const mult = outcome.maxWinAmount / bet;
+    if (mult < 2) outcome = { ...outcome, outcome: 'small_win' };
+    else if (mult < 5) outcome = { ...outcome, outcome: 'medium_win' };
+    else if (mult < 15) outcome = { ...outcome, outcome: 'big_win' };
+    else outcome = { ...outcome, outcome: 'mega_win' };
+  }
+
+  // Spin Wheel: sync outcome tier for segment selection
+  if (gameId === 'spin-wheel' && outcome.maxWinAmount > 0) {
+    const mult = outcome.maxWinAmount / bet;
+    if (mult < 2) outcome = { ...outcome, outcome: 'small_win' };
+    else if (mult < 5) outcome = { ...outcome, outcome: 'medium_win' };
+    else if (mult < 15) outcome = { ...outcome, outcome: 'big_win' };
+    else outcome = { ...outcome, outcome: 'mega_win' };
+  }
+
+  // Lucky Win: sync outcome tier for grid/symbol selection
+  if (gameId === 'lucky-win' && outcome.maxWinAmount > 0) {
+    const mult = outcome.maxWinAmount / bet;
+    if (mult < 2) outcome = { ...outcome, outcome: 'small_win' };
+    else if (mult < 5) outcome = { ...outcome, outcome: 'medium_win' };
+    else if (mult < 15) outcome = { ...outcome, outcome: 'big_win' };
+    else outcome = { ...outcome, outcome: 'mega_win' };
+  }
+
+  // Classic 777, Golden Book: sync outcome tier for symbol selection
+  if (['classic-777', 'golden-book'].includes(gameId) && outcome.maxWinAmount > 0) {
+    const mult = outcome.maxWinAmount / bet;
+    if (mult < 2) outcome = { ...outcome, outcome: 'small_win' };
+    else if (mult < 5) outcome = { ...outcome, outcome: 'medium_win' };
+    else if (mult < 15) outcome = { ...outcome, outcome: 'big_win' };
+    else outcome = { ...outcome, outcome: 'mega_win' };
+  }
+
   const multiplier = outcome.multiplier ?? (outcome.maxWinAmount > 0 ? Math.round((outcome.maxWinAmount / bet) * 100) / 100 : 0);
   const { data, error } = await supabaseAdmin.rpc('settle_generic_game_round', {
     p_user_id: userId,

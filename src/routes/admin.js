@@ -81,6 +81,29 @@ router.post('/approve-agent', requireAuth, requireAdmin, async (req, res) => {
     await supabaseAdmin.from('agent_wallets').insert({ user_id: userId });
   }
 
+  // Ensure profile exists so agent shows in Payment Agents list
+  const { data: existingProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('user_id')
+    .eq('user_id', userId)
+    .single();
+  if (existingProfile) {
+    await supabaseAdmin.from('profiles').update({
+      username: app.name,
+      phone: phone,
+    }).eq('user_id', userId);
+  } else {
+    const { data: refCode } = await supabaseAdmin.rpc('generate_refer_code');
+    const { data: uCode } = await supabaseAdmin.rpc('generate_user_code');
+    await supabaseAdmin.from('profiles').insert({
+      user_id: userId,
+      username: app.name,
+      phone: phone,
+      refer_code: refCode ?? null,
+      user_code: uCode ?? null,
+    });
+  }
+
   await supabaseAdmin
     .from('agent_applications')
     .update({

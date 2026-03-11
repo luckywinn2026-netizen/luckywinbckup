@@ -7,6 +7,8 @@ const ALLOWED_RPCS = new Set([
   'adjust_wallet_balance',
   'add_vip_points',
   'claim_cashback',
+  'try_daily_spin',
+  'get_daily_spin_status',
   'get_or_create_crash_round',
   'load_agent_balance',
   'pay_agent_commission',
@@ -44,6 +46,8 @@ const AGENT_OR_ADMIN_RPCS = new Set([
 const USER_SCOPED_RPC_PARAMS = {
   adjust_wallet_balance: 'p_user_id',
   add_vip_points: 'p_user_id',
+  try_daily_spin: 'p_user_id',
+  get_daily_spin_status: 'p_user_id',
   claim_cashback: 'p_user_id',
   has_role: '_user_id',
   pay_agent_commission: 'p_admin_id',

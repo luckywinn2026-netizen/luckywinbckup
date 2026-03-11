@@ -7,6 +7,7 @@ const statsRoutes = require('./routes/stats');
 const gamesRoutes = require('./routes/games');
 const crashRoutes = require('./routes/crash');
 const rpcRoutes = require('./routes/rpc');
+const paymentsRoutes = require('./routes/payments');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -21,6 +22,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/games', gamesRoutes);
 app.use('/api/crash', crashRoutes);
 app.use('/api/rpc', rpcRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

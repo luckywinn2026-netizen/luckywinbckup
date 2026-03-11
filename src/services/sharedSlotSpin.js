@@ -65,6 +65,21 @@ async function runSharedSlotSpin(userId, betAmount, gameId, gameName) {
     outcome = applyLuckySpinMultiplier(outcome, bet);
   }
 
+  // Lucky 777: win must be displayable as digit × multiplier (matches frontend reel logic)
+  if (gameId === 'lucky-777' && outcome.maxWinAmount > 0) {
+    const mults = bet <= 5 ? [1, 2, 3, 5, 10, 25, 50] : [1, 2, 3, 5, 10, 25, 50, 100, 200, 500];
+    const maxDigit = bet >= 5 ? 999 : 99;
+    let best = 0;
+    for (const mult of mults) {
+      const digit = Math.floor(outcome.maxWinAmount / mult);
+      if (digit >= 1 && digit <= maxDigit) {
+        const displayable = digit * mult;
+        if (displayable <= outcome.maxWinAmount && displayable > best) best = displayable;
+      }
+    }
+    if (best > 0) outcome = { ...outcome, maxWinAmount: best };
+  }
+
   // Fortune Gems: sync outcome tier to actual amount so UI shows correct gem count
   // Paytable: small 0.5–1.5x, medium 2–4x, big 5–12x, mega 15x+
   if (gameId === 'fortune-gems' && outcome.maxWinAmount > 0) {

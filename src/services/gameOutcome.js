@@ -96,6 +96,22 @@ async function recordUserWin(userId, winType, winAmount, gameId) {
   });
 }
 
+/** Lucky 777: win must be expressible as digit × multiplier. Frontend: bet<5 → digit 1–99, bet≥5 → 1–999. Mults: bet≤5 → 1–50, else 1–500. */
+function roundToDisplayableLucky777(maxWin, bet) {
+  if (!maxWin || maxWin < 1) return 0;
+  const mults = bet <= 5 ? [1, 2, 3, 5, 10, 25, 50] : [1, 2, 3, 5, 10, 25, 50, 100, 200, 500];
+  const maxDigit = bet >= 5 ? 999 : 99;
+  let best = 0;
+  for (const mult of mults) {
+    const digit = Math.floor(maxWin / mult);
+    if (digit >= 1 && digit <= maxDigit) {
+      const displayable = digit * mult;
+      if (displayable <= maxWin && displayable > best) best = displayable;
+    }
+  }
+  return best || Math.min(1, maxWin);
+}
+
 async function calculateOutcome(userId, betAmount, gameType, gameId) {
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
 
@@ -194,9 +210,12 @@ async function calculateOutcome(userId, betAmount, gameType, gameId) {
         Math.floor(globalAvailablePool)
       );
       if (maxWin >= betAmount * 20) {
-        await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'jackpot', p_amount: maxWin });
-        await recordUserWin(userId, 'jackpot', maxWin, gameId);
-        return { outcome: 'mega_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'jackpot' };
+        if (gameId === 'lucky-777') maxWin = roundToDisplayableLucky777(maxWin, betAmount);
+        if (maxWin >= betAmount * 20) {
+          await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'jackpot', p_amount: maxWin });
+          await recordUserWin(userId, 'jackpot', maxWin, gameId);
+          return { outcome: 'mega_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'jackpot' };
+        }
       }
     }
   }
@@ -213,9 +232,12 @@ async function calculateOutcome(userId, betAmount, gameType, gameId) {
         Math.floor(globalAvailablePool)
       );
       if (maxWin >= betAmount * 5) {
-        await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'big_win', p_amount: maxWin });
-        await recordUserWin(userId, 'big_win', maxWin, gameId);
-        return { outcome: 'big_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'big_win' };
+        if (gameId === 'lucky-777') maxWin = roundToDisplayableLucky777(maxWin, betAmount);
+        if (maxWin >= betAmount * 5) {
+          await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'big_win', p_amount: maxWin });
+          await recordUserWin(userId, 'big_win', maxWin, gameId);
+          return { outcome: 'big_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'big_win' };
+        }
       }
     }
   }
@@ -229,8 +251,11 @@ async function calculateOutcome(userId, betAmount, gameType, gameId) {
       Math.floor(globalAvailablePool)
     );
     if (maxWin > 0) {
-      await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'medium_win', p_amount: maxWin });
-      return { outcome: 'medium_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'medium_win' };
+      if (gameId === 'lucky-777') maxWin = roundToDisplayableLucky777(maxWin, betAmount);
+      if (maxWin > 0) {
+        await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'medium_win', p_amount: maxWin });
+        return { outcome: 'medium_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'medium_win' };
+      }
     }
   }
 
@@ -254,8 +279,11 @@ async function calculateOutcome(userId, betAmount, gameType, gameId) {
       maxWin = Math.min(maxWin, varied);
     }
     if (maxWin > 0) {
-      await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'small_win', p_amount: maxWin });
-      return { outcome: 'small_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'small_win' };
+      if (gameId === 'lucky-777') maxWin = roundToDisplayableLucky777(maxWin, betAmount);
+      if (maxWin > 0) {
+        await supabaseAdmin.rpc('deduct_from_pool', { p_game_id: gameId, p_pool_type: 'small_win', p_amount: maxWin });
+        return { outcome: 'small_win', maxWinAmount: maxWin, availablePool: globalAvailablePool, poolUsed: 'small_win' };
+      }
     }
   }
 

@@ -27,6 +27,14 @@ Server চালু হবে: `http://localhost:4000`
 | POST | `/api/games/color-prediction-outcome` | Bearer | Body: `{ bet_amount, bet_type, bet_value, period_id? }` |
 | POST | `/api/games/boxing-king-spin` | Bearer | Stub (501) – logic port করা বাকি |
 | POST | `/api/games/super-ace-spin` | Bearer | Stub (501) – logic port করা বাকি |
+| GET | `/api/payments/deposit-form-data` | Bearer | E-wallet deposit form data |
+| GET | `/api/payments/withdraw-form-data` | Bearer | E-wallet withdraw form data |
+| GET | `/api/payments/lucky-agent-data` | Bearer | Lucky Agent list, methods, agent numbers |
+| GET | `/api/payments/check-deposit-trx?trx_id=` | Bearer | Check duplicate TrxID |
+| POST | `/api/payments/deposits` | Bearer | Create deposit request |
+| POST | `/api/payments/withdrawals` | Bearer | Create withdrawal (deduct + insert) |
+| GET | `/api/payments/withdrawals` | Bearer | List withdrawals (agent/admin) |
+| POST | `/api/payments/withdrawals/:id/reject` | Bearer | Reject withdrawal |
 
 ## Frontend থেকে ব্যবহার
 

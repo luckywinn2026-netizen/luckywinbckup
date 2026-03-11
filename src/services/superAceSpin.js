@@ -317,33 +317,33 @@ function cascadeGrid(grid, winPositions, freeSpinMode = false) {
 async function runSuperAceSpin(userId, bet) {
   if (!VALID_BETS.includes(bet)) return { error: 'Invalid bet amount' };
 
-  const { data: activeSession } = await supabaseAdmin
-    .from('super_ace_sessions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('game_id', GAME_ID)
-    .eq('active', true)
-    .maybeSingle();
-
-  const isFreeSpinMode = !!(activeSession && activeSession.spins_remaining > 0);
-
-  const { data: wallet, error: walletErr } = await supabaseAdmin
-    .from('wallets')
-    .select('balance')
-    .eq('user_id', userId)
-    .single();
-
-  if (walletErr || !wallet) return { error: 'Wallet not found' };
-  if (!isFreeSpinMode && wallet.balance < bet) return { error: 'Insufficient balance' };
-
-  // Prefer aggregated game stats RPC to avoid heavy full scan of game_sessions (see get_game_stats migration)
-  const [profitSettingsRes, profileRes, globalStatsRes, gameStatsRes, spinCountRes] = await Promise.all([
+  // ─── FAST: All initial reads in parallel (casino-grade latency) ───
+  const [
+    sessionRes,
+    walletRes,
+    profitSettingsRes,
+    profileRes,
+    globalStatsRes,
+    gameStatsRes,
+    spinCountRes,
+  ] = await Promise.all([
+    supabaseAdmin.from('super_ace_sessions').select('*').eq('user_id', userId).eq('game_id', GAME_ID).eq('active', true).maybeSingle(),
+    supabaseAdmin.from('wallets').select('balance').eq('user_id', userId).single(),
     supabaseAdmin.from('game_profit_settings').select('profit_margin, max_win_multiplier, small_win_pool_pct, medium_win_pool_pct, big_win_pool_pct, jackpot_pool_pct').eq('game_id', GAME_ID).single(),
     supabaseAdmin.from('profiles').select('forced_result').eq('user_id', userId).single(),
     supabaseAdmin.rpc('get_total_bets_and_wins'),
     supabaseAdmin.rpc('get_game_stats', { p_game_id: GAME_ID }),
     supabaseAdmin.from('game_sessions').select('id', { count: 'exact', head: true }).eq('user_id', userId),
   ]);
+
+  const activeSession = sessionRes.data;
+  const wallet = walletRes.data;
+  const walletErr = walletRes.error;
+
+  if (walletErr || !wallet) return { error: 'Wallet not found' };
+
+  const isFreeSpinMode = !!(activeSession && activeSession.spins_remaining > 0);
+  if (!isFreeSpinMode && wallet.balance < bet) return { error: 'Insufficient balance' };
 
   const rawMargin = profitSettingsRes.data ? Number(profitSettingsRes.data.profit_margin) : DEFAULT_PROFIT_MARGIN;
   const profitMargin = Math.max(5, Math.min(40, rawMargin));
